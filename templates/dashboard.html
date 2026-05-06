@@ -78,9 +78,19 @@
                 <option value="none" selected>None</option>
                 <option value="segment">A/B by segment</option>
                 <option value="sentence">A/B by sentence</option>
+                <option value="voice">A/B by voice</option>
               </select>
             </label>
+
+            <label id="speakerCountField" class="is-hidden">
+              <span>Voice count</span>
+              <input id="speakerCount" name="speaker_count" type="number" min="0" max="10" step="1" value="2">
+            </label>
           </div>
+
+          <p class="field-note is-hidden" id="speakerModeNote">
+            Voice labels use local pyannote diarization and need a Hugging Face token in HF_TOKEN.
+          </p>
 
           <label class="prompt-field">
             <span>Context prompt</span>

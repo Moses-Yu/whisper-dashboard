@@ -246,6 +246,17 @@ h2 {
   font-weight: 700;
 }
 
+.field-note {
+  margin-top: -6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.is-hidden {
+  display: none !important;
+}
+
 select,
 input,
 textarea {

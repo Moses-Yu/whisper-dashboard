@@ -11,7 +11,7 @@ No cloud transcription API or API key is required.
 - Upload one or more audio files from the browser
 - Supports `.m4a`, `.mp3`, `.mp4`, `.mpeg`, `.mpga`, `.wav`, and `.webm`
 - Choose Whisper model, language, task, chunk size, timestamps, and prompt
-- Optional `A:` / `B:` speaker labels from local post-processing
+- Optional `A:` / `B:` speaker labels from local post-processing or voice diarization
 - Watch queued/running/done/error job status in the dashboard
 - Preview, copy, and download completed transcripts
 - Play uploaded audio next to the transcript
@@ -85,12 +85,49 @@ http://127.0.0.1:7860
 4. Choose optional speaker labels:
    - `A/B by segment` alternates labels across Whisper segments.
    - `A/B by sentence` alternates labels across sentence-like units.
+   - `A/B by voice` uses speaker diarization to assign labels from voice.
 5. Click **Start transcription**.
 6. Select a completed job to preview, copy, or download the transcript.
 
-Speaker labels are a lightweight formatting helper, not true diarization. Whisper
-does not know who is speaking, so this app alternates labels locally after
-transcription. For exact speaker identity, use a dedicated diarization model.
+`A/B by segment` and `A/B by sentence` are lightweight formatting helpers.
+Whisper does not know who is speaking, so those modes alternate labels locally
+after transcription.
+
+`A/B by voice` uses local pyannote diarization to detect speaker turns by voice
+and then align Whisper text to those turns. It is much closer to what people
+usually mean by speaker labels, but it needs the optional setup below.
+
+## Voice-Based Speaker Labels
+
+Install the optional diarization dependency:
+
+```bash
+# Poetry environment
+poetry run pip install -r requirements-diarization.txt
+
+# venv / pip environment
+pip install -r requirements-diarization.txt
+```
+
+Create a Hugging Face token at `https://huggingface.co/settings/tokens`, then
+accept the terms for `pyannote/speaker-diarization-community-1`.
+
+Set the token in your shell:
+
+```bash
+export HF_TOKEN=your_hugging_face_token_here
+```
+
+Or put it in a local `.env` file:
+
+```bash
+cp .env.example .env
+```
+
+Then edit `.env` and replace the placeholder. `.env` is ignored by Git.
+
+Restart the dashboard and choose `Speaker labels -> A/B by voice`. For normal
+phone calls, keep `Voice count` set to `2`.
 
 ## Command Line Use
 
@@ -113,7 +150,8 @@ python main.py "/path/to/audio.m4a" \
   --model large-v3 \
   --language ko \
   --chunk-seconds 300 \
-  --speaker-mode sentence \
+  --speaker-mode voice \
+  --speaker-count 2 \
   --timestamps \
   --initial-prompt "Hospital names, speaker names, and domain terms"
 ```

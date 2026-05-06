@@ -47,8 +47,14 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--speaker-mode",
         default="none",
-        choices=["none", "segment", "sentence"],
+        choices=["none", "segment", "sentence", "voice"],
         help="Optional A/B speaker labels using local post-processing.",
+    )
+    parser.add_argument(
+        "--speaker-count",
+        type=int,
+        default=None,
+        help="Expected number of voices for --speaker-mode voice. Use 2 for calls.",
     )
     parser.add_argument(
         "--initial-prompt",
@@ -69,6 +75,7 @@ def main() -> None:
         chunk_seconds=args.chunk_seconds,
         include_timestamps=args.timestamps,
         speaker_mode=args.speaker_mode,
+        speaker_count=args.speaker_count,
         initial_prompt=args.initial_prompt,
     )
 
@@ -78,6 +85,10 @@ def main() -> None:
             print(f"Loading Whisper model: {settings.model}")
         elif phase == "loading_audio":
             print(f"Loading audio: {args.audio}")
+        elif phase == "loading_diarization":
+            print("Loading speaker diarization model...")
+        elif phase == "diarizing":
+            print("Detecting speakers by voice...")
         elif phase == "transcribing":
             chunk = event.get("chunk_index")
             total = event.get("total_chunks")

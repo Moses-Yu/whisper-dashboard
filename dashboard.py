@@ -173,6 +173,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         "default_model": DEFAULT_MODEL,
                         "default_chunk_seconds": DEFAULT_CHUNK_SECONDS,
                         "speaker_modes": sorted(SPEAKER_MODES),
+                        "default_speaker_count": 2,
                         "supported_extensions": sorted(SUPPORTED_AUDIO_EXTENSIONS),
                     }
                 )
@@ -300,6 +301,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "chunk_seconds": settings.chunk_seconds,
                 "include_timestamps": settings.include_timestamps,
                 "speaker_mode": settings.speaker_mode,
+                "speaker_count": settings.speaker_count,
                 "initial_prompt": settings.initial_prompt or "",
                 "current_chunk": 0,
                 "total_chunks": 0,
@@ -423,7 +425,14 @@ def parse_settings(fields: dict[str, str]) -> TranscriptionSettings:
     }
     speaker_mode = (fields.get("speaker_mode") or "none").strip()
     if speaker_mode not in SPEAKER_MODES:
-        raise ValueError("Speaker mode must be none, segment, or sentence.")
+        raise ValueError("Speaker mode must be none, segment, sentence, or voice.")
+
+    try:
+        speaker_count = int(fields.get("speaker_count") or 0)
+    except ValueError as exc:
+        raise ValueError("Speaker count must be a number.") from exc
+    if speaker_count < 0 or speaker_count > 10:
+        raise ValueError("Speaker count must be between 0 and 10.")
 
     initial_prompt = (fields.get("initial_prompt") or "").strip() or None
 
@@ -434,6 +443,7 @@ def parse_settings(fields: dict[str, str]) -> TranscriptionSettings:
         chunk_seconds=chunk_seconds,
         include_timestamps=include_timestamps,
         speaker_mode=speaker_mode,
+        speaker_count=speaker_count if speaker_mode == "voice" and speaker_count else None,
         initial_prompt=initial_prompt,
     )
 
@@ -450,6 +460,7 @@ def run_transcription_job(job_id: str) -> None:
         chunk_seconds=int(job["chunk_seconds"]),
         include_timestamps=bool(job["include_timestamps"]),
         speaker_mode=job.get("speaker_mode", "none"),
+        speaker_count=job.get("speaker_count"),
         initial_prompt=job.get("initial_prompt") or None,
     )
 
@@ -511,6 +522,12 @@ def progress_message(event: dict[str, Any]) -> str:
         return "Loading model"
     if phase == "loading_audio":
         return "Loading audio"
+    if phase == "loading_diarization":
+        return "Loading diarization"
+    if phase == "diarizing":
+        return "Detecting speakers by voice"
+    if phase == "diarization_done":
+        return "Speaker detection complete"
     if phase == "transcribing":
         return f"Chunk {event.get('chunk_index')}/{event.get('total_chunks')}"
     if phase == "chunk_done":

@@ -16,6 +16,9 @@ const els = {
   task: document.querySelector("#task"),
   chunkSeconds: document.querySelector("#chunkSeconds"),
   speakerMode: document.querySelector("#speakerMode"),
+  speakerCount: document.querySelector("#speakerCount"),
+  speakerCountField: document.querySelector("#speakerCountField"),
+  speakerModeNote: document.querySelector("#speakerModeNote"),
   initialPrompt: document.querySelector("#initialPrompt"),
   includeTimestamps: document.querySelector("#includeTimestamps"),
   uploadMeter: document.querySelector("#uploadMeter"),
@@ -85,6 +88,7 @@ async function loadConfig() {
     els.model.appendChild(option);
   }
   els.chunkSeconds.value = config.default_chunk_seconds || 300;
+  els.speakerCount.value = config.default_speaker_count || 2;
 }
 
 async function loadJobs() {
@@ -190,6 +194,7 @@ function buildFormData() {
   formData.append("task", els.task.value);
   formData.append("chunk_seconds", els.chunkSeconds.value);
   formData.append("speaker_mode", els.speakerMode.value);
+  formData.append("speaker_count", els.speakerCount.value);
   formData.append("initial_prompt", els.initialPrompt.value.trim());
   if (els.includeTimestamps.checked) {
     formData.append("include_timestamps", "true");
@@ -248,6 +253,7 @@ function uploadFiles() {
 function installEvents() {
   els.chooseButton.addEventListener("click", () => els.files.click());
   els.files.addEventListener("change", renderSelectedFiles);
+  els.speakerMode.addEventListener("change", syncSpeakerControls);
   els.refreshJobs.addEventListener("click", loadJobs);
   els.form.addEventListener("submit", (event) => {
     event.preventDefault();
@@ -283,11 +289,18 @@ function installEvents() {
   });
 }
 
+function syncSpeakerControls() {
+  const usesVoice = els.speakerMode.value === "voice";
+  els.speakerCountField.classList.toggle("is-hidden", !usesVoice);
+  els.speakerModeNote.classList.toggle("is-hidden", !usesVoice);
+}
+
 async function start() {
   try {
     await loadConfig();
     await loadJobs();
     installEvents();
+    syncSpeakerControls();
     state.pollTimer = window.setInterval(async () => {
       await loadJobs();
       if (state.selectedJobId) {
