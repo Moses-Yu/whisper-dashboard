@@ -45,6 +45,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include chunk timestamps in the transcript.",
     )
     parser.add_argument(
+        "--speaker-mode",
+        default="none",
+        choices=["none", "segment", "sentence"],
+        help="Optional A/B speaker labels using local post-processing.",
+    )
+    parser.add_argument(
         "--initial-prompt",
         default=None,
         help="Optional Whisper prompt to guide names, terms, or context.",
@@ -62,6 +68,7 @@ def main() -> None:
         task=args.task,
         chunk_seconds=args.chunk_seconds,
         include_timestamps=args.timestamps,
+        speaker_mode=args.speaker_mode,
         initial_prompt=args.initial_prompt,
     )
 

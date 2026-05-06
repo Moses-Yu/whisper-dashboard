@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import math
 from pathlib import Path
+import re
 import threading
 from typing import Any, Callable
 
@@ -22,6 +23,8 @@ SUPPORTED_AUDIO_EXTENSIONS = {
 
 DEFAULT_MODEL = "large-v3"
 DEFAULT_CHUNK_SECONDS = 300
+SPEAKER_MODES = {"none", "segment", "sentence"}
+SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?。！？])\s+")
 
 ProgressCallback = Callable[[dict[str, Any]], None]
 
@@ -36,7 +39,16 @@ class TranscriptionSettings:
     task: str = "transcribe"
     chunk_seconds: int = DEFAULT_CHUNK_SECONDS
     include_timestamps: bool = False
+    speaker_mode: str = "none"
     initial_prompt: str | None = None
+
+
+@dataclass(frozen=True)
+class TranscriptSegment:
+    index: int
+    start_seconds: float
+    end_seconds: float
+    text: str
 
 
 @dataclass(frozen=True)
@@ -45,6 +57,7 @@ class TranscriptChunk:
     start_seconds: float
     end_seconds: float
     text: str
+    segments: tuple[TranscriptSegment, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -89,8 +102,16 @@ def format_timestamp(seconds: float) -> str:
 
 
 def format_transcript(
-    chunks: list[TranscriptChunk], include_timestamps: bool = False
+    chunks: list[TranscriptChunk],
+    include_timestamps: bool = False,
+    speaker_mode: str = "none",
 ) -> str:
+    if speaker_mode not in SPEAKER_MODES:
+        raise ValueError(f"Unknown speaker mode: {speaker_mode}")
+
+    if speaker_mode != "none":
+        return format_speaker_transcript(chunks, speaker_mode, include_timestamps)
+
     if not include_timestamps:
         return "\n\n".join(chunk.text for chunk in chunks if chunk.text).strip()
 
@@ -104,6 +125,127 @@ def format_transcript(
     return "\n\n".join(blocks).strip()
 
 
+def format_speaker_transcript(
+    chunks: list[TranscriptChunk],
+    speaker_mode: str,
+    include_timestamps: bool,
+) -> str:
+    turns = dialogue_turns(chunks, speaker_mode)
+    labels = ("A", "B")
+    lines = []
+    for index, turn in enumerate(turns):
+        speaker = labels[index % len(labels)]
+        if include_timestamps:
+            start = format_timestamp(turn.start_seconds)
+            end = format_timestamp(turn.end_seconds)
+            lines.append(f"[{start} - {end}] {speaker}: {turn.text}")
+        else:
+            lines.append(f"{speaker}: {turn.text}")
+    return "\n".join(lines).strip()
+
+
+def dialogue_turns(
+    chunks: list[TranscriptChunk],
+    speaker_mode: str,
+) -> list[TranscriptSegment]:
+    if speaker_mode == "sentence":
+        return split_segments_into_sentences(source_segments(chunks))
+    return source_segments(chunks)
+
+
+def source_segments(chunks: list[TranscriptChunk]) -> list[TranscriptSegment]:
+    segments: list[TranscriptSegment] = []
+    for chunk in chunks:
+        if chunk.segments:
+            segments.extend(chunk.segments)
+        elif chunk.text:
+            segments.append(
+                TranscriptSegment(
+                    index=len(segments) + 1,
+                    start_seconds=chunk.start_seconds,
+                    end_seconds=chunk.end_seconds,
+                    text=chunk.text,
+                )
+            )
+    return segments
+
+
+def split_segments_into_sentences(
+    segments: list[TranscriptSegment],
+) -> list[TranscriptSegment]:
+    turns: list[TranscriptSegment] = []
+    for segment in segments:
+        sentences = [
+            sentence.strip()
+            for sentence in SENTENCE_SPLIT_RE.split(segment.text.strip())
+            if sentence.strip()
+        ]
+        if len(sentences) <= 1:
+            turns.append(
+                TranscriptSegment(
+                    index=len(turns) + 1,
+                    start_seconds=segment.start_seconds,
+                    end_seconds=segment.end_seconds,
+                    text=segment.text,
+                )
+            )
+            continue
+
+        duration = max(0.0, segment.end_seconds - segment.start_seconds)
+        total_chars = sum(len(sentence) for sentence in sentences) or 1
+        current_start = segment.start_seconds
+        for sentence_index, sentence in enumerate(sentences):
+            if sentence_index == len(sentences) - 1:
+                current_end = segment.end_seconds
+            else:
+                current_end = current_start + duration * (len(sentence) / total_chars)
+            turns.append(
+                TranscriptSegment(
+                    index=len(turns) + 1,
+                    start_seconds=current_start,
+                    end_seconds=current_end,
+                    text=sentence,
+                )
+            )
+            current_start = current_end
+    return turns
+
+
+def transcript_segments(
+    result: dict[str, Any],
+    chunk_offset: float,
+    chunk_end: float,
+    fallback_text: str,
+) -> tuple[TranscriptSegment, ...]:
+    raw_segments = result.get("segments") or []
+    segments: list[TranscriptSegment] = []
+    for raw_segment in raw_segments:
+        text = str(raw_segment.get("text", "")).strip()
+        if not text:
+            continue
+        start = chunk_offset + float(raw_segment.get("start", 0))
+        end = chunk_offset + float(raw_segment.get("end", 0))
+        segments.append(
+            TranscriptSegment(
+                index=len(segments) + 1,
+                start_seconds=max(chunk_offset, start),
+                end_seconds=min(chunk_end, max(start, end)),
+                text=text,
+            )
+        )
+
+    if not segments and fallback_text:
+        segments.append(
+            TranscriptSegment(
+                index=1,
+                start_seconds=chunk_offset,
+                end_seconds=chunk_end,
+                text=fallback_text,
+            )
+        )
+    return tuple(segments)
+
+
 def transcribe_audio_file(
     audio_path: Path,
     output_path: Path | None = None,
@@ -111,6 +253,9 @@ def transcribe_audio_file(
     progress_callback: ProgressCallback | None = None,
 ) -> TranscriptionResult:
     settings = settings or TranscriptionSettings()
+    if settings.speaker_mode not in SPEAKER_MODES:
+        raise ValueError(f"Unknown speaker mode: {settings.speaker_mode}")
+
     audio_path = Path(audio_path)
     output_path = Path(output_path) if output_path else default_output_path(audio_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -160,16 +305,22 @@ def transcribe_audio_file(
         )
         result = model.transcribe(chunk, **options)
         text = result.get("text", "").strip()
+        segments = transcript_segments(result, start, end, text)
         chunks.append(
             TranscriptChunk(
                 index=index,
                 start_seconds=start,
                 end_seconds=end,
                 text=text,
+                segments=segments,
             )
         )
         output_path.write_text(
-            format_transcript(chunks, settings.include_timestamps),
+            format_transcript(
+                chunks,
+                settings.include_timestamps,
+                settings.speaker_mode,
+            ),
             encoding="utf-8",
         )
         emit(
@@ -181,7 +332,7 @@ def transcribe_audio_file(
             start_seconds=start,
         )
 
-    text = format_transcript(chunks, settings.include_timestamps)
+    text = format_transcript(chunks, settings.include_timestamps, settings.speaker_mode)
     output_path.write_text(text, encoding="utf-8")
     emit(progress_callback, phase="done", progress=1, total_chunks=total_chunks)
 

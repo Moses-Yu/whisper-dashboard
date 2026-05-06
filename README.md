@@ -11,6 +11,7 @@ No cloud transcription API or API key is required.
 - Upload one or more audio files from the browser
 - Supports `.m4a`, `.mp3`, `.mp4`, `.mpeg`, `.mpga`, `.wav`, and `.webm`
 - Choose Whisper model, language, task, chunk size, timestamps, and prompt
+- Optional `A:` / `B:` speaker labels from local post-processing
 - Watch queued/running/done/error job status in the dashboard
 - Preview, copy, and download completed transcripts
 - Play uploaded audio next to the transcript
@@ -81,8 +82,15 @@ http://127.0.0.1:7860
 2. Pick a model. `large-v3` is accurate but large; `base` is much faster for
    testing.
 3. Set a language such as `Korean`, `English`, or `Auto`.
-4. Click **Start transcription**.
-5. Select a completed job to preview, copy, or download the transcript.
+4. Choose optional speaker labels:
+   - `A/B by segment` alternates labels across Whisper segments.
+   - `A/B by sentence` alternates labels across sentence-like units.
+5. Click **Start transcription**.
+6. Select a completed job to preview, copy, or download the transcript.
+
+Speaker labels are a lightweight formatting helper, not true diarization. Whisper
+does not know who is speaking, so this app alternates labels locally after
+transcription. For exact speaker identity, use a dedicated diarization model.
 
 ## Command Line Use
 
@@ -105,6 +113,7 @@ python main.py "/path/to/audio.m4a" \
   --model large-v3 \
   --language ko \
   --chunk-seconds 300 \
+  --speaker-mode sentence \
   --timestamps \
   --initial-prompt "Hospital names, speaker names, and domain terms"
 ```

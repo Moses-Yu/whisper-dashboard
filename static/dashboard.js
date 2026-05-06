@@ -15,6 +15,7 @@ const els = {
   language: document.querySelector("#language"),
   task: document.querySelector("#task"),
   chunkSeconds: document.querySelector("#chunkSeconds"),
+  speakerMode: document.querySelector("#speakerMode"),
   initialPrompt: document.querySelector("#initialPrompt"),
   includeTimestamps: document.querySelector("#includeTimestamps"),
   uploadMeter: document.querySelector("#uploadMeter"),
@@ -128,7 +129,8 @@ function renderJobs() {
     item.appendChild(top);
 
     const meta = createElement("div", "job-meta");
-    const model = `${job.model} / ${job.language || "auto"}`;
+    const speakerMode = job.speaker_mode && job.speaker_mode !== "none" ? ` / ${job.speaker_mode}` : "";
+    const model = `${job.model} / ${job.language || "auto"}${speakerMode}`;
     const chunks = job.total_chunks ? `${job.current_chunk || 0}/${job.total_chunks}` : "queued";
     meta.appendChild(createElement("span", "", model));
     meta.appendChild(createElement("span", "", `${formatBytes(job.size_bytes)} / ${chunks}`));
@@ -187,6 +189,7 @@ function buildFormData() {
   formData.append("language", els.language.value);
   formData.append("task", els.task.value);
   formData.append("chunk_seconds", els.chunkSeconds.value);
+  formData.append("speaker_mode", els.speakerMode.value);
   formData.append("initial_prompt", els.initialPrompt.value.trim());
   if (els.includeTimestamps.checked) {
     formData.append("include_timestamps", "true");

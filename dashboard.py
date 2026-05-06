@@ -21,6 +21,7 @@ from transcriber import (
     DEFAULT_CHUNK_SECONDS,
     DEFAULT_MODEL,
     SUPPORTED_AUDIO_EXTENSIONS,
+    SPEAKER_MODES,
     TranscriptionSettings,
     available_models,
     transcribe_audio_file,
@@ -171,6 +172,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                         "models": available_models(),
                         "default_model": DEFAULT_MODEL,
                         "default_chunk_seconds": DEFAULT_CHUNK_SECONDS,
+                        "speaker_modes": sorted(SPEAKER_MODES),
                         "supported_extensions": sorted(SUPPORTED_AUDIO_EXTENSIONS),
                     }
                 )
@@ -297,6 +299,7 @@ class DashboardHandler(BaseHTTPRequestHandler):
                 "task": settings.task,
                 "chunk_seconds": settings.chunk_seconds,
                 "include_timestamps": settings.include_timestamps,
+                "speaker_mode": settings.speaker_mode,
                 "initial_prompt": settings.initial_prompt or "",
                 "current_chunk": 0,
                 "total_chunks": 0,
@@ -418,6 +421,10 @@ def parse_settings(fields: dict[str, str]) -> TranscriptionSettings:
         "yes",
         "on",
     }
+    speaker_mode = (fields.get("speaker_mode") or "none").strip()
+    if speaker_mode not in SPEAKER_MODES:
+        raise ValueError("Speaker mode must be none, segment, or sentence.")
+
     initial_prompt = (fields.get("initial_prompt") or "").strip() or None
 
     return TranscriptionSettings(
@@ -426,6 +433,7 @@ def parse_settings(fields: dict[str, str]) -> TranscriptionSettings:
         task=task,
         chunk_seconds=chunk_seconds,
         include_timestamps=include_timestamps,
+        speaker_mode=speaker_mode,
         initial_prompt=initial_prompt,
     )
 
@@ -441,6 +449,7 @@ def run_transcription_job(job_id: str) -> None:
         task=job["task"],
         chunk_seconds=int(job["chunk_seconds"]),
         include_timestamps=bool(job["include_timestamps"]),
+        speaker_mode=job.get("speaker_mode", "none"),
         initial_prompt=job.get("initial_prompt") or None,
     )
 

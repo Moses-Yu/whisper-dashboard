@@ -71,6 +71,15 @@
               <span>Chunk seconds</span>
               <input id="chunkSeconds" name="chunk_seconds" type="number" min="30" max="1800" step="30" value="300">
             </label>
+
+            <label>
+              <span>Speaker labels</span>
+              <select id="speakerMode" name="speaker_mode">
+                <option value="none" selected>None</option>
+                <option value="segment">A/B by segment</option>
+                <option value="sentence">A/B by sentence</option>
+              </select>
+            </label>
           </div>
 
           <label class="prompt-field">
