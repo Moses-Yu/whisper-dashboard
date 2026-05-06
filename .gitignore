@@ -1,0 +1,26 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.venv/
+Untitled
+
+# Secrets and local machine config
+.env
+.env.*
+!.env.example
+
+# Uploaded or source audio files can contain private conversations.
+*.m4a
+*.mp3
+*.mp4
+*.mpeg
+*.mpga
+*.wav
+*.webm
+
+# Generated transcripts and dashboard runtime state
+*_result.txt
+result.txt
+uploads/
+transcripts/
+dashboard_data/

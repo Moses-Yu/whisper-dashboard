@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Whisper Dashboard</title>
+    <link rel="stylesheet" href="/static/dashboard.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Local transcription</p>
+          <h1>Whisper Dashboard</h1>
+        </div>
+        <div class="server-pill" id="serverStatus">Ready</div>
+      </header>
+
+      <section class="workbench" aria-label="Transcription workbench">
+        <form class="upload-panel" id="uploadForm">
+          <div class="panel-heading">
+            <div>
+              <h2>Upload</h2>
+              <p>M4A, MP3, WAV, MP4, MPEG, MPGA, WEBM</p>
+            </div>
+            <button class="secondary" type="button" id="chooseButton">Choose</button>
+          </div>
+
+          <label class="dropzone" id="dropzone">
+            <input
+              id="audioFiles"
+              name="audio"
+              type="file"
+              accept=".m4a,.mp3,.mp4,.mpeg,.mpga,.wav,.webm,audio/*"
+              multiple
+            >
+            <span class="drop-title">Drop audio files</span>
+            <span class="drop-subtitle">or use the file picker</span>
+          </label>
+
+          <div class="file-list" id="fileList"></div>
+
+          <div class="settings-grid">
+            <label>
+              <span>Model</span>
+              <select id="model" name="model"></select>
+            </label>
+
+            <label>
+              <span>Language</span>
+              <select id="language" name="language">
+                <option value="ko" selected>Korean</option>
+                <option value="auto">Auto</option>
+                <option value="en">English</option>
+                <option value="ja">Japanese</option>
+                <option value="zh">Chinese</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Task</span>
+              <select id="task" name="task">
+                <option value="transcribe" selected>Transcribe</option>
+                <option value="translate">Translate to English</option>
+              </select>
+            </label>
+
+            <label>
+              <span>Chunk seconds</span>
+              <input id="chunkSeconds" name="chunk_seconds" type="number" min="30" max="1800" step="30" value="300">
+            </label>
+          </div>
+
+          <label class="prompt-field">
+            <span>Context prompt</span>
+            <textarea id="initialPrompt" name="initial_prompt" rows="3" placeholder="Names, acronyms, or meeting context"></textarea>
+          </label>
+
+          <div class="option-row">
+            <label class="check-row">
+              <input id="includeTimestamps" name="include_timestamps" type="checkbox">
+              <span>Chunk timestamps</span>
+            </label>
+          </div>
+
+          <div class="upload-meter" id="uploadMeter" hidden>
+            <span id="uploadMeterBar"></span>
+          </div>
+
+          <div class="actions">
+            <button class="primary" type="submit" id="startButton">Start transcription</button>
+            <button class="secondary" type="button" id="refreshJobs">Refresh</button>
+          </div>
+        </form>
+
+        <section class="jobs-panel" aria-label="Transcription jobs">
+          <div class="panel-heading compact">
+            <div>
+              <h2>Jobs</h2>
+              <p id="jobCount">0 items</p>
+            </div>
+          </div>
+          <div class="jobs-list" id="jobsList"></div>
+        </section>
+      </section>
+
+      <section class="result-panel" aria-label="Transcript result">
+        <div class="result-header">
+          <div>
+            <p class="eyebrow">Transcript</p>
+            <h2 id="resultTitle">Select a completed job</h2>
+          </div>
+          <div class="result-actions">
+            <button class="secondary" type="button" id="copyButton" disabled>Copy</button>
+            <button class="secondary" type="button" id="downloadButton" disabled>Download</button>
+          </div>
+        </div>
+        <audio id="audioPlayer" controls hidden></audio>
+        <pre id="transcriptBox">No transcript selected.</pre>
+      </section>
+    </main>
+
+    <script src="/static/dashboard.js"></script>
+  </body>
+</html>
